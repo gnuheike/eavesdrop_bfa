@@ -543,12 +543,12 @@ function EavesDrop:CombatEvent(larg1, ...)
     texture = select(3, GetSpellInfo(spellId))
 
     if toPlayer then      
-      inout = OUTGOING  
+      inout = INCOMING  
       totHealingIn = totHealingIn + amount
       if (amount < db["HFILTER"]) then return end
       if (db["OVERHEAL"]) and overHeal > 0 then text = string_format("%s {%s}", shortenValue(amount-overHeal), shortenValue(overHeal)) end
       if (critical) then text = critchar..text..critchar end
-      if (db["HEALERID"] == true and not fromPlayer) then text = text.." ("..sourceName..")" end     
+      --if (db["HEALERID"] == true and not fromPlayer) then text = text.." ("..sourceName..")" end     
       color = db["PHEAL"]
       if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
         text = newhigh..text..newhigh
@@ -558,7 +558,7 @@ function EavesDrop:CombatEvent(larg1, ...)
       text = shortname.." +"..text
       message = sourceName.." +"..text
 
-      self:DisplayEvent(inout, text, texture, color, text)  
+      self:DisplayEvent(inout, text, texture, color, message)  
     elseif fromPlayer then    
    	  if db["ACDELAY"] > 0 then
       	self:AccumulateEvent(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID) 
