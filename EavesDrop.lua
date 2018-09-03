@@ -126,6 +126,12 @@ local POWER_STRINGS = {
 [6]	= RUNIC_POWER
 }
 
+local DELAYED_HEALING_SPELLS = {
+	81751, --Atonement
+	194509, --PW:RADIANCE
+	47750, --Penance
+}
+
 
 local acc_heals = {}
 local acc_last_check = GetTime()
@@ -181,7 +187,6 @@ end
 
 --Main Functions
 function EavesDrop:OnInitialize()
-
   --setup table for display frame objects
   for i=1, arrDisplaySize do
     arrEventFrames[i] = {}
@@ -559,11 +564,11 @@ function EavesDrop:CombatEvent(larg1, ...)
       message = sourceName.." +"..text
 
       self:DisplayEvent(inout, text, texture, color, message)  
-    elseif fromPlayer then    
-   	  if db["ACDELAY"] > 0 then
+    elseif fromPlayer then 
+   	  if (db["ACDELAY"] > 0 and tContains(DELAYED_HEALING_SPELLS, spellId)) then
       	self:AccumulateEvent(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID) 
       else 
-      	self:DisplayHeal(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture) 
+      	self:DisplayHeal(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID) 
       end
     end 
     
@@ -621,7 +626,6 @@ function EavesDrop:CombatEvent(larg1, ...)
       elseif not toPet then
         return
       end
-      print(powerType)
       local power_type_string = string_nil(POWER_STRINGS[powerType])
       text = string_format("+%d %s", amount, power_type_string)
       self:DisplayEvent(inout, text, texture, color, message)
@@ -736,14 +740,9 @@ function EavesDrop:DisplayMultipleHeal(data)
 
 	---Tooltip
 	local tooltiptext = ''
-	table.foreach(targets, function(guid, data) 		
-
+	table.foreach(targets, function(guid, data) 
 		local shortname = string.gsub(strsplit("-", data.destName), "%s+", "")
-		color = RAID_CLASS_COLORS[select(2,GetPlayerInfoByGUID(guid))]
-		if color then
-			escapeColor = string.format("|cff%02x%02x%02x", color.r*255, color.g*255, color.b*255)
-			shortname = escapeColor..shortname.."|r "
-		end
+		shortname = self:ClassColorGuid(guid, shortname)		
 
 		local charText = '|cFF00FF00+'..string_format("%s {%s}", shortenValue(data.amount-data.overHeal), shortenValue(data.overHeal))..'|r'
 		charText = shortname .. ' '..charText
@@ -753,7 +752,7 @@ function EavesDrop:DisplayMultipleHeal(data)
 		end
 
 		if data.critical > 0 then
-			charText = charText .. ' ('..data.critical..'crits)'
+			charText = charText .. ' |cFFFF0000*'..data.critical..'*|r'
 		end
 
 		tooltiptext = tooltiptext..charText.."\n"
@@ -765,27 +764,26 @@ function EavesDrop:DisplayMultipleHeal(data)
     self:DisplayEvent(1, text, total_texture, db["PHEAL"], tooltiptext)  
 end
 
-function EavesDrop:DisplayHeal(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture) 
-	  totHealingOut = totHealingOut + amount
+function EavesDrop:ClassColorGuid(guid, text)
+	color = RAID_CLASS_COLORS[select(2,GetPlayerInfoByGUID(guid))]
+	if color then
+		local escapeColor = string.format("|cff%02x%02x%02x", color.r*255, color.g*255, color.b*255)
+		text = escapeColor..text.."|r "
+	end
+	return text
+end
+
+function EavesDrop:DisplayHeal(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID) 
       if (amount < db["HFILTER"]) then return end
 
-      local r_amount = amount-overHeal
-      local r_overheal = overHeal
-      
+      local amnt = string_format("%s {%s}", shortenValue(amount-overHeal), shortenValue(overHeal))
+      if (critical) then text = critchar..text..critchar end   
 
-      if (db["OVERHEAL"]) and overHeal > 0 then text = string_format("%s {%s}", shortenValue(r_amount), shortenValue(r_overheal)) end
-      if (critical) then text = critchar..text..critchar end
-      --color = db["THEAL"]
-      color = db["PHEAL"]
-      if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
-        text = newhigh..text..newhigh
-      end
+      local text = "+"..amnt  
+      local shortname = string.gsub(strsplit("-", destName), "%s+", "")
+      local tooltip = self:ClassColorGuid(destGUID, shortname)..' |cFF00FF00+'..amnt..'|r' 
 
-      local shortname = strsplit("-", destName)
-      text = " +"..text
-      message = " +"..text..' '..destName 
-
-      self:DisplayEvent(inout, text, texture, color, text)  
+      self:DisplayEvent(OUTGOING, text, texture, db["PHEAL"], tooltip)  
 end
 
 function EavesDrop:COMBAT_TEXT_UPDATE(event, larg1, larg2, larg3)
