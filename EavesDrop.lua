@@ -117,12 +117,18 @@ local SCHOOL_STRINGS = {
 local POWER_STRINGS = {
 [-2] =	HEALTH,
 [0]	= MANA,
+[501] = MANA,
+[894] = MANA,
 [1]	= RAGE, 
 [2]	= FOCUS, 
 [3]	= ENERGY, 
 [5]	= RUNES,
 [6]	= RUNIC_POWER
 }
+
+
+local acc_heals = {}
+local acc_last_check = GetTime()
 
 --set table default size sense table.insert no longer does
 for i=1, arrMaxSize do
@@ -399,6 +405,7 @@ function EavesDrop:ShowFrame()
 end
 
 function EavesDrop:CombatEvent(larg1, ...)
+  self:AccumulateHealsTick() 
   local timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, extraArg1, extraArg2, extraArg3, extraArg4, extraArg5, extraArg6, extraArg7, extraArg8, extraArg9, extraArg10 = CombatLogGetCurrentEventInfo()
   local etype = COMBAT_EVENTS[event] 
   if not etype then return end
@@ -417,6 +424,13 @@ function EavesDrop:CombatEvent(larg1, ...)
     toPet = CombatLog_Object_IsA(destFlags, COMBATLOG_FILTER_MY_PET)
   end
 
+  if destGUID == sourceGUID then 
+  	fromPlayer = true  	
+  	toPlayer = false
+  end
+
+  if fromPlayer and not (sourceGUID == UnitGUID("player")) then return end
+
   if not fromPlayer and not toPlayer and not fromPet and not toPet then return end
   if (not fromPlayer and not toPlayer) and (toPet or fromPet) and not db["PET"] then return end
 
@@ -432,6 +446,8 @@ function EavesDrop:CombatEvent(larg1, ...)
 
   if toPet then color = db["PETI"] end
   if fromPet then color = db["PETO"] end
+  
+
 
   --get combat log message (for tooltip)
   --message = CombatLog_OnEvent(Blizzard_CombatLog_CurrentSettings, timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceFlags2, destGUID, destName, destFlags, destFlags2, ...)
@@ -471,7 +487,10 @@ function EavesDrop:CombatEvent(larg1, ...)
     if (blocked) then text = string_format("%s (%d)", text, shortenValue(blocked)) end
     if (absorbed) then text = string_format("%s (%d)", text, shortenValue(absorbed))end
 
+     if (amount < db["DFILTER"]) then return end
+
     if fromPlayer then
+      inout = OUTGOING
       if (self:TrackStat(inout, "hit", spellName, texture, SCHOOL_STRINGS[school], amount, critical, message)) then
         text = newhigh..text..newhigh
       end
@@ -479,20 +498,27 @@ function EavesDrop:CombatEvent(larg1, ...)
       if school == SCHOOL_MASK_PHYSICAL then school = 0 end
       color = self:SpellColor(db[outtype], SCHOOL_STRINGS[school])
       totDamageOut = totDamageOut + amount
+    	if destName then
+    		message = text..' '..destName 
+    		--text = message
+    	end
     elseif toPlayer then
+      inout = INCOMING      
       if (self:TrackStat(inout, "hit", spellName, texture, SCHOOL_STRINGS[school], amount, critical, message)) then
         text = newhigh..text..newhigh
       end
       color = self:SpellColor(db[intype], SCHOOL_STRINGS[school])
       text = "-"..text
       totDamageIn = totDamageIn + amount
+
+	    if sourceName then
+	    	message = text..' '..sourceName
+	    	--text = message
+	    end
     elseif toPet then
       text = "-"..text
-    end
+    end    
     
-    if sourceName and destName then
-    	message = sourceName .. ' -> ' .. destName .. '    ' .. text
-    end
     self:DisplayEvent(inout, text, texture, color, message)
   ------------buff/debuff gain----------------
   elseif etype == "BUFF" then
@@ -517,12 +543,12 @@ function EavesDrop:CombatEvent(larg1, ...)
     texture = select(3, GetSpellInfo(spellId))
 
     if toPlayer then      
-      inout = -1  
+      inout = OUTGOING  
       totHealingIn = totHealingIn + amount
       if (amount < db["HFILTER"]) then return end
       if (db["OVERHEAL"]) and overHeal > 0 then text = string_format("%s {%s}", shortenValue(amount-overHeal), shortenValue(overHeal)) end
       if (critical) then text = critchar..text..critchar end
-      if (db["HEALERID"] == true and not fromPlayer) then text = text.." ("..sourceName..")" end
+      if (db["HEALERID"] == true and not fromPlayer) then text = text.." ("..sourceName..")" end     
       color = db["PHEAL"]
       if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
         text = newhigh..text..newhigh
@@ -532,22 +558,16 @@ function EavesDrop:CombatEvent(larg1, ...)
       text = shortname.." +"..text
       message = sourceName.." +"..text
 
-    elseif fromPlayer then
-      totHealingOut = totHealingOut + amount
-      if (amount < db["HFILTER"]) then return end
-      if (db["OVERHEAL"]) and overHeal > 0 then text = string_format("%s {%s}", shortenValue(amount-overHeal), shortenValue(overHeal)) end
-      if (critical) then text = critchar..text..critchar end
-      color = db["THEAL"]
-      if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
-        text = newhigh..text..newhigh
+      self:DisplayEvent(inout, text, texture, color, text)  
+    elseif fromPlayer then    
+   	  if db["ACDELAY"] > 0 then
+      	self:AccumulateEvent(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID) 
+      else 
+      	self:DisplayHeal(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture) 
       end
-
-      local shortname = strsplit("-", destName)
-      text = " +"..text..' '..shortname   
-      message = " +"..text..' '..destName  
     end 
     
-    self:DisplayEvent(inout, text, texture, color, text)
+
   ------------misses----------------
   elseif etype == "MISS" then
     local tcolor
@@ -601,7 +621,7 @@ function EavesDrop:CombatEvent(larg1, ...)
       elseif not toPet then
         return
       end
-
+      print(powerType)
       local power_type_string = string_nil(POWER_STRINGS[powerType])
       text = string_format("+%d %s", amount, power_type_string)
       self:DisplayEvent(inout, text, texture, color, message)
@@ -631,6 +651,141 @@ function EavesDrop:PLAYER_XP_UPDATE()
   local xpgained = xp - pxp
   self:DisplayEvent(MISC, string_format("+%d (%s)", shortenValue(xpgained), XP), nil, db["EXPC"], nil)
   pxp = xp
+end
+
+function EavesDrop:ReleaseHeals(data) 
+	if 1 == #data then
+		self:DisplayHeal(unpack(data[1]))
+	else
+		self:DisplayMultipleHeal(data)
+	end
+end
+
+function EavesDrop:AccumulateHealsTick() 	
+	local time = GetTime()
+	local acdelay = tonumber(db["ACDELAY"])/1000
+	if (acc_last_check + acdelay > time) then return end
+	acc_last_check = time
+
+	table.foreach(acc_heals, function(spellId,data) 
+			local acc_started = data[1]	
+			if (acc_started+acdelay < time) then		
+				table.remove(data, 1)				
+				self:ReleaseHeals(data)			
+				acc_heals[spellId] = nil							
+			end
+		end)
+end
+
+function dumpz(o)
+    if type(o) == 'table' then
+        local s = '{ '
+        for k,v in pairs(o) do
+                if type(k) ~= 'number' then k = '"'..k..'"' end
+                s = s .. '['..k..'] = ' .. dumpz(v) .. ','
+        end
+        return s .. '} '
+    else
+        return tostring(o)
+    end
+end
+
+--ACCOMULATE EVENT HEAL FROM PLAYER TO
+function EavesDrop:AccumulateEvent(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID)
+	  if ((not acc_heals[spellId]) or (nil == acc_heals[spellId])) then acc_heals[spellId] = {GetTime()} end;
+	  local data = {destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID}	  
+	  table.insert(acc_heals[spellId], data)
+
+end
+
+function EavesDrop:DisplayMultipleHeal(data) 
+	local total_amount = 0
+	local total_overheal = 0	
+	local total_texture = ''
+	local targets = {}	
+
+	table.foreach(data, function(spellId,data) 
+			local destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID = unpack(data)		
+			
+			--Total 
+			total_amount = total_amount + amount
+			total_overheal = total_overheal + overHeal
+			total_texture = texture	
+
+			--Target Specific
+			if not targets[destGUID] then 	
+				local init_target = {
+					destName = destName,
+					count = 0,
+					amount = 0,
+					overHeal = 0,
+					critical = 0
+				}	
+				targets[destGUID] = init_target			
+			end
+			
+			local td = targets[destGUID]
+			td.count = td.count + 1
+			td.amount = td.amount + amount
+			td.overHeal = td.overHeal + overHeal
+			if (critical) then
+				td.critical = td.critical +1
+			end
+		end)
+
+
+	---Tooltip
+	local tooltiptext = ''
+	table.foreach(targets, function(guid, data) 		
+
+		local shortname = string.gsub(strsplit("-", data.destName), "%s+", "")
+		color = RAID_CLASS_COLORS[select(2,GetPlayerInfoByGUID(guid))]
+		if color then
+			escapeColor = string.format("|cff%02x%02x%02x", color.r*255, color.g*255, color.b*255)
+			shortname = escapeColor..shortname.."|r "
+		end
+
+		local charText = '|cFF00FF00+'..string_format("%s {%s}", shortenValue(data.amount-data.overHeal), shortenValue(data.overHeal))..'|r'
+		charText = shortname .. ' '..charText
+
+		if (data.count > 1) then
+			charText = 'x'..data.count..' '..charText
+		end
+
+		if data.critical > 0 then
+			charText = charText .. ' ('..data.critical..'crits)'
+		end
+
+		tooltiptext = tooltiptext..charText.."\n"
+	end)
+
+    text = string_format("%s {%s}", shortenValue(total_amount-total_overheal), shortenValue(total_overheal))  
+    text = " +"..text..' x'..#data   
+
+    self:DisplayEvent(1, text, total_texture, db["PHEAL"], tooltiptext)  
+end
+
+function EavesDrop:DisplayHeal(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture) 
+	  totHealingOut = totHealingOut + amount
+      if (amount < db["HFILTER"]) then return end
+
+      local r_amount = amount-overHeal
+      local r_overheal = overHeal
+      
+
+      if (db["OVERHEAL"]) and overHeal > 0 then text = string_format("%s {%s}", shortenValue(r_amount), shortenValue(r_overheal)) end
+      if (critical) then text = critchar..text..critchar end
+      --color = db["THEAL"]
+      color = db["PHEAL"]
+      if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
+        text = newhigh..text..newhigh
+      end
+
+      local shortname = strsplit("-", destName)
+      text = " +"..text
+      message = " +"..text..' '..destName 
+
+      self:DisplayEvent(inout, text, texture, color, text)  
 end
 
 function EavesDrop:COMBAT_TEXT_UPDATE(event, larg1, larg2, larg3)

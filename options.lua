@@ -617,6 +617,16 @@ function EavesDrop:SetupOptions()
                 end
             end
           },
+          DFILTER = {
+            name = L["DFFilter"], type = "range",
+            desc = L["DFFilterD"],
+            order = 7,
+            get=getOption,
+            set=setOption,
+            min = 0,
+            max = 10000,
+            step = 100
+          },
           HFILTER = {
             name = L["MHFilter"], type = "range",
             desc = L["MHFilterD"],
@@ -626,6 +636,16 @@ function EavesDrop:SetupOptions()
             min = 0,
             max = 10000,
             step = 100
+          },
+          ACDELAY = {
+            name = L["ACCDelay"], type = "range",
+            desc = L["ACCDelayD"],
+            order = 7,
+            get=getOption,
+            set=setOption,
+            min = 0,
+            max = 5000,
+            step = 10
           },
           MFILTER = {
             name = L["MMFilter"], type = "range",
