@@ -115,24 +115,13 @@ local SCHOOL_STRINGS = {
 }
 
 local POWER_STRINGS = {
-  ["SPELL_POWER_MANA"] = MANA,
-  ["SPELL_POWER_RAGE"] = RAGE,
-  ["SPELL_POWER_FOCUS"] = FOCUS,
-  ["SPELL_POWER_ENERGY"] = ENERGY,
-  ["SPELL_POWER_RUNES"] = RUNES,
-  ["SPELL_POWER_RUNIC_POWER"] = RUNIC_POWER,
-  ["SPELL_POWER_SOUL_SHARDS"] = SHARDS,
-  ["SPELL_POWER_LUNAR_POWER"] = LUNAR_POWER,
-  ["SPELL_POWER_HOLY_POWER"] = HOLY_POWER,
-  ["SPELL_POWER_ALTERNATE_POWER"] = ALTERNATE_RESOURCE_TEXT,
-  ["SPELL_POWER_MAELSTROM"] = MAELSTROM_POWER,
-  ["SPELL_POWER_CHI"] = CHI_POWER,
-  ["SPELL_POWER_INSANITY"] = INSANITY_POWER,
-  --[SPELL_POWER_OBSOLETE] = 14;
-  --[SPELL_POWER_OBSOLETE2] = 15;
-  ["SPELL_POWER_ARCANE_CHARGES"] = ARCANE_CHARGES_POWER,
-  ["SPELL_POWER_FURY"] = FURY,
-  ["SPELL_POWER_PAIN"] = PAIN,
+[-2] =	HEALTH,
+[0]	= MANA,
+[1]	= RAGE, 
+[2]	= FOCUS, 
+[3]	= ENERGY, 
+[5]	= RUNES,
+[6]	= RUNIC_POWER
 }
 
 --set table default size sense table.insert no longer does
@@ -411,7 +400,7 @@ end
 
 function EavesDrop:CombatEvent(larg1, ...)
   local timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, extraArg1, extraArg2, extraArg3, extraArg4, extraArg5, extraArg6, extraArg7, extraArg8, extraArg9, extraArg10 = CombatLogGetCurrentEventInfo()
-  local etype = COMBAT_EVENTS[event]  
+  local etype = COMBAT_EVENTS[event] 
   if not etype then return end
 
   --if not Blizzard_CombatLog_CurrentSettings then
@@ -437,37 +426,39 @@ function EavesDrop:CombatEvent(larg1, ...)
 
   --defaults
   if toPet or fromPet then texture = "pet" end
+
   if toPlayer or toPet then inout = INCOMING end
-  if fromPlayer or fromPet then inout = OUTGOING end
+  if fromPlayer or fromPet then inout = OUTGOING end  
+
   if toPet then color = db["PETI"] end
   if fromPet then color = db["PETO"] end
 
   --get combat log message (for tooltip)
   --message = CombatLog_OnEvent(Blizzard_CombatLog_CurrentSettings, timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceFlags2, destGUID, destName, destFlags, destFlags2, ...)
-
+  
 
   ------------damage----------------
   if etype == "DAMAGE" then
     local intype, outtype
     if event == "SWING_DAMAGE" then
-      amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(1, ...)
+      amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(12, CombatLogGetCurrentEventInfo()) 
       if school == SCHOOL_MASK_PHYSICAL then
         outtype, intype = "TMELEE", "PHIT"
       else
         outtype, intype = "TSPELL", "PSPELL"
       end
     elseif event == "RANGE_DAMAGE" then
-      spellId, spellName, spellSchool, amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(1, ...)
+      spellId, spellName, spellSchool, amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(12, CombatLogGetCurrentEventInfo()) 
       if school == SCHOOL_MASK_PHYSICAL then
         outtype, intype = "TMELEE", "PHIT"
       else
         outtype, intype = "TSPELL", "PSPELL"
       end
     elseif event == "ENVIRONMENTAL_DAMAGE" then
-      environmentalType, amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(1, ...)
+      environmentalType, amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(12, CombatLogGetCurrentEventInfo()) 
       outtype, intype = "TSPELL", "PSPELL"
     else
-      spellId, spellName, spellSchool, amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(1, ...)
+      spellId, spellName, spellSchool, amount, overDamage, school, resisted, blocked, absorbed, critical, glancing, crushing = select(12, CombatLogGetCurrentEventInfo()) 
       texture = select(3, GetSpellInfo(spellId))
       outtype, intype = "TSPELL", "PSPELL"
     end
@@ -498,10 +489,14 @@ function EavesDrop:CombatEvent(larg1, ...)
     elseif toPet then
       text = "-"..text
     end
+    
+    if sourceName and destName then
+    	message = sourceName .. ' -> ' .. destName .. '    ' .. text
+    end
     self:DisplayEvent(inout, text, texture, color, message)
   ------------buff/debuff gain----------------
   elseif etype == "BUFF" then
-    spellId, spellName, spellSchool, auraType, amount = select(1, ...)
+    spellId, spellName, spellSchool, auraType, amount = select(12, CombatLogGetCurrentEventInfo()) 
     texture = select(3, GetSpellInfo(spellId))
     if toPlayer and db[auraType] then
       self:DisplayEvent(INCOMING, self:ShortenString(spellName), texture, db["P"..auraType], message)
@@ -509,7 +504,7 @@ function EavesDrop:CombatEvent(larg1, ...)
     end
   ------------buff/debuff lose----------------
   elseif etype == "FADE" then
-    spellId, spellName, spellSchool, auraType, amount = select(1, ...)
+    spellId, spellName, spellSchool, auraType, amount = select(12, CombatLogGetCurrentEventInfo()) 
     texture = select(3, GetSpellInfo(spellId))
     if toPlayer and db[auraType.."FADE"] then
       self:DisplayEvent(INCOMING, self:ShortenString(spellName).." "..L["Fades"], texture, db["P"..auraType], message)
@@ -521,7 +516,8 @@ function EavesDrop:CombatEvent(larg1, ...)
     text = tostring(shortenValue(amount))
     texture = select(3, GetSpellInfo(spellId))
 
-    if toPlayer then        
+    if toPlayer then      
+      inout = -1  
       totHealingIn = totHealingIn + amount
       if (amount < db["HFILTER"]) then return end
       if (db["OVERHEAL"]) and overHeal > 0 then text = string_format("%s {%s}", shortenValue(amount-overHeal), shortenValue(overHeal)) end
@@ -531,7 +527,11 @@ function EavesDrop:CombatEvent(larg1, ...)
       if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
         text = newhigh..text..newhigh
       end
-      text = "+"..text  
+
+      local shortname = strsplit("-", sourceName)
+      text = shortname.." +"..text
+      message = sourceName.." +"..text
+
     elseif fromPlayer then
       totHealingOut = totHealingOut + amount
       if (amount < db["HFILTER"]) then return end
@@ -541,18 +541,21 @@ function EavesDrop:CombatEvent(larg1, ...)
       if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
         text = newhigh..text..newhigh
       end
-      text = "+"..text
-      if (db["HEALERID"] == true) then text = destName..": "..text end
-    end
-    self:DisplayEvent(inout, text, texture, color, message)
+
+      local shortname = strsplit("-", destName)
+      text = " +"..text..' '..shortname   
+      message = " +"..text..' '..destName  
+    end 
+    
+    self:DisplayEvent(inout, text, texture, color, text)
   ------------misses----------------
   elseif etype == "MISS" then
     local tcolor
     if event == "SWING_MISSED" or event == "RANGE_MISSED" then
-      missType = select(1, ...)
+      missType = select(12, CombatLogGetCurrentEventInfo()) 
       tcolor = "TMELEE"
     else
-      spellId, spellName, spellSchool, missType = select(1, ...)
+      spellId, spellName, spellSchool, missType = select(12, CombatLogGetCurrentEventInfo()) 
       texture = select(3, GetSpellInfo(spellId))
       tcolor = "TSPELL"
     end
@@ -569,8 +572,8 @@ function EavesDrop:CombatEvent(larg1, ...)
   ------------leech and drains----------------
   elseif etype == "DRAIN" then
     if (db["GAINS"]) then
-      spellId, spellName, spellSchool, amount, powerType, extraAmount = select(1, ...)
-      texture = select(3, GetSpellInfo(spellId))
+      spellId, spellName, spellSchool, amount, powerType, extraAmount = select(12, CombatLogGetCurrentEventInfo()) 
+      texture = select(3, GetSpellInfo(spellId))      
       if toPlayer then
         text = string_format("-%d %s", amount, string_nil(POWER_STRINGS[powerType]))
         color = db["PGAIN"]
@@ -589,15 +592,18 @@ function EavesDrop:CombatEvent(larg1, ...)
   ------------power gains----------------
   elseif etype == "POWER" then
     if (db["GAINS"]) then
-      spellId, spellName, spellSchool, amount, powerType = select(1, ...)
+      spellId, spellName, spellSchool, amount, powerType = select(12, CombatLogGetCurrentEventInfo()) 
       texture = select(3, GetSpellInfo(spellId))
+      color = db["PGAIN"]
+
       if toPlayer then
-        if (amount < db["MFILTER"]) then return end
-        color = db["PGAIN"]
+        if (amount < db["MFILTER"]) then return end        
       elseif not toPet then
         return
       end
-      text = string_format("+%d %s", amount, string_nil(POWER_STRINGS[powerType]))
+
+      local power_type_string = string_nil(POWER_STRINGS[powerType])
+      text = string_format("+%d %s", amount, power_type_string)
       self:DisplayEvent(inout, text, texture, color, message)
     end
   ------------deaths----------------
@@ -630,7 +636,7 @@ end
 function EavesDrop:COMBAT_TEXT_UPDATE(event, larg1, larg2, larg3)
   if larg1=="FACTION" then
     local sign = "+"
-    if (tonumber(larg3) < 0) then sign = "" end
+    if (larg3 and tonumber(larg3) < 0) then sign = "" end
     self:DisplayEvent(MISC, string_format("%s%d (%s)", sign, larg3, larg2), nil, db["REPC"], nil)
   elseif larg1=="HONOR_GAINED" then
     self:DisplayEvent(MISC, string_format("+%d (%s)", larg2, HONOR) , nil, db["HONORC"], nil)
@@ -688,23 +694,18 @@ function EavesDrop:CHAT_MSG_SKILL(event, larg1)
 end
 
 local tempcolor = {r = 1, g = 1, b = 1}
-function EavesDrop:DisplayEvent(type, text, texture, color, message, spellname)
+function EavesDrop:DisplayEvent(type, text, texture, color, message, spellname)  
   --remove oldest table and create new display event
   local pEvent = tremove(arrEventData, 1)
-  local tooltiptext = message
+  local tooltiptext = message  
+
   if (db["FLIP"] == true) then type = type * -1 end
   pEvent.type = type
   pEvent.text = text
   pEvent.texture = texture
-  pEvent.color = color or tempcolor
-  if spellname then
-    tooltiptext = spellname
-  end
-  if (db["TIMESTAMP"] == true) then
-    pEvent.tooltipText = string_format('|cffffffff%s|r\n%s', date('%I:%M:%S'), tooltiptext or '')
-  else
-    pEvent.tooltipText = tooltiptext
-  end
+  pEvent.color = color or tempcolor 
+  pEvent.tooltipText = tooltiptext
+	
   tinsert(arrEventData, arrMaxSize, pEvent)
   self:UpdateEvents()
 end
