@@ -128,10 +128,18 @@ local POWER_STRINGS = {
 
 local DELAYED_HEALING_SPELLS = {
 	81751, --Atonement
+	94472,
 	194509, --PW:RADIANCE
 	47750, --Penance
+  32546, --Binding heal
+  33076, --Player of healing
+  596, --Player of mending
+  77489, --Holy mastery
+  243241, --Cosmic Ripple
 }
 
+local RED_COLOR = '|cFFFF0000'
+local GREEN_COLOR = '|cFF00FF00'
 
 local acc_heals = {}
 local acc_last_check = GetTime()
@@ -496,7 +504,7 @@ function EavesDrop:CombatEvent(larg1, ...)
 
     if fromPlayer then
       inout = OUTGOING
-      if (self:TrackStat(inout, "hit", spellName, texture, SCHOOL_STRINGS[school], amount, critical, message)) then
+      if (spellName and school and amount and texture and self:TrackStat(inout, "hit", spellName, texture, SCHOOL_STRINGS[school], amount, critical, message)) then
         text = newhigh..text..newhigh
       end
       --fix colors for self physical
@@ -508,18 +516,18 @@ function EavesDrop:CombatEvent(larg1, ...)
     		--text = message
     	end
     elseif toPlayer then
-      inout = INCOMING      
-      if (self:TrackStat(inout, "hit", spellName, texture, SCHOOL_STRINGS[school], amount, critical, message)) then
-        text = newhigh..text..newhigh
-      end
+      inout = INCOMING   
       color = self:SpellColor(db[intype], SCHOOL_STRINGS[school])
-      text = "-"..text
-      totDamageIn = totDamageIn + amount
+      text = RED_COLOR.."-"..text..'|r'     
 
 	    if sourceName then
-	    	message = text..' '..sourceName
-	    	--text = message
+	    	message = text..' '..sourceName	    	
 	    end
+
+      if spellName then
+        message = message .. "\n" .. spellName.. GREEN_COLOR.." ["..spellId.."]"..'|r'
+      end
+
     elseif toPet then
       text = "-"..text
     end    
@@ -565,6 +573,12 @@ function EavesDrop:CombatEvent(larg1, ...)
 
       self:DisplayEvent(inout, text, texture, color, message)  
     elseif fromPlayer then 
+    	
+      if spellId==94472 then
+      	--Atonement crit or smite heal
+      	spellId=81751
+      end 	
+
    	  if (db["ACDELAY"] > 0 and tContains(DELAYED_HEALING_SPELLS, spellId)) then
       	self:AccumulateEvent(destName, inout, spellId, spellName, spellSchool, amount, overHeal, absorbed, critical, text, texture, destGUID) 
       else 
@@ -783,6 +797,10 @@ function EavesDrop:DisplayHeal(destName, inout, spellId, spellName, spellSchool,
       local shortname = string.gsub(strsplit("-", destName), "%s+", "")
       local tooltip = self:ClassColorGuid(destGUID, shortname)..' |cFF00FF00+'..amnt..'|r' 
 
+      if spellName and spellId then
+        tooltip = tooltip .. "\n"..spellName.." ["..spellId.."]"
+      end
+
       self:DisplayEvent(OUTGOING, text, texture, db["PHEAL"], tooltip)  
 end
 
@@ -790,7 +808,7 @@ function EavesDrop:COMBAT_TEXT_UPDATE(event, larg1, larg2, larg3)
   if larg1=="FACTION" then
     local sign = "+"
     if (larg3 and tonumber(larg3) < 0) then sign = "" end
-    self:DisplayEvent(MISC, string_format("%s%d (%s)", sign, larg3, larg2), nil, db["REPC"], nil)
+    self:DisplayEvent(MISC, string_format("%s%d (%s)", sign, larg3 or nil, larg2), nil, db["REPC"], nil)
   elseif larg1=="HONOR_GAINED" then
     self:DisplayEvent(MISC, string_format("+%d (%s)", larg2, HONOR) , nil, db["HONORC"], nil)
   end
