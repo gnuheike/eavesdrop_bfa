@@ -419,6 +419,7 @@ end
 
 function EavesDrop:CombatEvent(larg1, ...)
   self:AccumulateHealsTick() 
+  local message = ''
   local timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, extraArg1, extraArg2, extraArg3, extraArg4, extraArg5, extraArg6, extraArg7, extraArg8, extraArg9, extraArg10 = CombatLogGetCurrentEventInfo()
   local etype = COMBAT_EVENTS[event] 
   if not etype then return end
@@ -500,7 +501,7 @@ function EavesDrop:CombatEvent(larg1, ...)
     if (blocked) then text = string_format("%s (%d)", text, shortenValue(blocked)) end
     if (absorbed) then text = string_format("%s (%d)", text, shortenValue(absorbed))end
 
-     if (amount < db["DFILTER"]) then return end
+    if (amount < db["DFILTER"]) then return end
 
     if fromPlayer then
       inout = OUTGOING
@@ -511,15 +512,19 @@ function EavesDrop:CombatEvent(larg1, ...)
       if school == SCHOOL_MASK_PHYSICAL then school = 0 end
       color = self:SpellColor(db[outtype], SCHOOL_STRINGS[school])
       totDamageOut = totDamageOut + amount
+
     	if destName then
-    		message = text..' '..destName 
-    		--text = message
+    		message = text..' '..destName     		
     	end
+
+      if spellName then
+        message = message .. "\n" .. spellName.. GREEN_COLOR.." ["..spellId.."]"..'|r'
+      end
     elseif toPlayer then
       inout = INCOMING   
       color = self:SpellColor(db[intype], SCHOOL_STRINGS[school])
       text = RED_COLOR.."-"..text..'|r'     
-
+ 
 	    if sourceName then
 	    	message = text..' '..sourceName	    	
 	    end
@@ -531,7 +536,7 @@ function EavesDrop:CombatEvent(larg1, ...)
     elseif toPet then
       text = "-"..text
     end    
-    
+
     self:DisplayEvent(inout, text, texture, color, message)
   ------------buff/debuff gain----------------
   elseif etype == "BUFF" then
@@ -808,7 +813,7 @@ function EavesDrop:COMBAT_TEXT_UPDATE(event, larg1, larg2, larg3)
   if larg1=="FACTION" then
     local sign = "+"
     if (larg3 and tonumber(larg3) < 0) then sign = "" end
-    self:DisplayEvent(MISC, string_format("%s%d (%s)", sign, larg3 or nil, larg2), nil, db["REPC"], nil)
+    self:DisplayEvent(MISC, string_format("%s%d (%s)", sign, larg3 or '', larg2 or ''), nil, db["REPC"], nil)
   elseif larg1=="HONOR_GAINED" then
     self:DisplayEvent(MISC, string_format("+%d (%s)", larg2, HONOR) , nil, db["HONORC"], nil)
   end

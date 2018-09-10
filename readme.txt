@@ -1,3 +1,8 @@
+EavesDrop Fixes for personal use.
+
+Original author:
+
+
 ***********************************
 EavesDrop 2.1
 ***********************************
