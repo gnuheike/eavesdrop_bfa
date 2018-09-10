@@ -126,6 +126,7 @@ local POWER_STRINGS = {
 [6]	= RUNIC_POWER
 }
 
+--healing outgoing speels that should be accomulated and displayed at stack
 local DELAYED_HEALING_SPELLS = {
 	81751, --Atonement
 	94472,
@@ -137,9 +138,15 @@ local DELAYED_HEALING_SPELLS = {
   77489, --Holy mastery
   243241, --Cosmic Ripple
   209780, --PVP priest dc
+
   774, --Drood reju
+  155777, --Drood rej talent
+  8936, --Drood flash hot
   48438, --Drood Wild Growth
   81269, --Drood grren void
+  207386, --Drood green void hot
+  157982, --Drood tranq
+  200389, --Drood tranq hot
 }
 
 local RED_COLOR = '|cFFFF0000'
