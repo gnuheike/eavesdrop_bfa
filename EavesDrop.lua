@@ -147,6 +147,8 @@ local DELAYED_HEALING_SPELLS = {
   207386, --Drood green void hot
   157982, --Drood tranq
   200389, --Drood tranq hot
+  274436, --Drood azerite
+
 }
 
 local RED_COLOR = '|cFFFF0000'
