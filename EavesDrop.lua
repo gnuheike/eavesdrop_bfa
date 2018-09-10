@@ -136,6 +136,10 @@ local DELAYED_HEALING_SPELLS = {
   596, --Player of mending
   77489, --Holy mastery
   243241, --Cosmic Ripple
+  209780, --PVP priest dc
+  774, --Drood reju
+  48438, --Drood Wild Growth
+  81269, --Drood grren void
 }
 
 local RED_COLOR = '|cFFFF0000'
