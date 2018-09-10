@@ -756,6 +756,8 @@ function EavesDrop:GetDefaultConfig()
       ["hx"] = 0,
       ["hy"] = 0,
       ["FONT"] = "Friz Quadrata TT",
+      ["ACDELAY"] = 1500,
+      ["DFILTER"] = 0
     }
   }
   return default
