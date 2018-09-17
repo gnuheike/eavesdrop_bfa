@@ -138,6 +138,10 @@ local DELAYED_HEALING_SPELLS = {
   77489, --Holy mastery
   243241, --Cosmic Ripple
   209780, --PVP priest dc
+  204065, --Shadow covenant
+  34861, --Holy krug
+  64864, --Holy tranq
+  139, --Renew
 
   774, --Drood reju
   155777, --Drood rej talent
@@ -149,6 +153,11 @@ local DELAYED_HEALING_SPELLS = {
   200389, --Drood tranq hot
   274436, --Drood azerite
   279793, --Drood azerite #2
+  33763,
+
+  225311, --Pally light of dawn
+  53652, --
+  216371,
 }
 
 local RED_COLOR = '|cFFFF0000'
@@ -538,6 +547,7 @@ function EavesDrop:CombatEvent(larg1, ...)
       color = self:SpellColor(db[intype], SCHOOL_STRINGS[school])
       text = RED_COLOR.."-"..text..'|r'     
  
+      message = ''
 	    if sourceName then
 	    	message = text..' '..sourceName	    	
 	    end
@@ -580,14 +590,14 @@ function EavesDrop:CombatEvent(larg1, ...)
       if (db["OVERHEAL"]) and overHeal > 0 then text = string_format("%s {%s}", shortenValue(amount-overHeal), shortenValue(overHeal)) end
       if (critical) then text = critchar..text..critchar end
       --if (db["HEALERID"] == true and not fromPlayer) then text = text.." ("..sourceName..")" end     
-      color = db["PHEAL"]
-      if (self:TrackStat(inout, "heal", spellName, texture, SCHOOL_STRINGS[spellSchool], amount, critical, message)) then
-        text = newhigh..text..newhigh
-      end
+      color = db["PHEAL"]      
+      text = " +"..text
 
-      local shortname = strsplit("-", sourceName)
-      text = shortname.." +"..text
-      message = sourceName.." +"..text
+      message = self:ClassColorGuid(destGUID, strsplit("-", sourceName)).." +"..text
+
+      if spellName then
+        message = message.."\n" .. spellName.. GREEN_COLOR.." ["..spellId.."]"..'|r'
+      end
 
       self:DisplayEvent(inout, text, texture, color, message)  
     elseif fromPlayer then 
@@ -790,8 +800,8 @@ function EavesDrop:DisplayMultipleHeal(data)
 		tooltiptext = tooltiptext..charText.."\n"
 	end)
 
-    text = string_format("%s {%s}", shortenValue(total_amount-total_overheal), shortenValue(total_overheal))  
-    text = " +"..text..' x'..#data   
+    text = string_format("%s", shortenValue(total_amount-total_overheal))  
+    --text = " +"..text..' x'..#data   
 
     self:DisplayEvent(1, text, total_texture, db["PHEAL"], tooltiptext)  
 end
@@ -811,7 +821,7 @@ function EavesDrop:DisplayHeal(destName, inout, spellId, spellName, spellSchool,
       local amnt = string_format("%s {%s}", shortenValue(amount-overHeal), shortenValue(overHeal))
       if (critical) then text = critchar..text..critchar end   
 
-      local text = "+"..amnt  
+      local text = "+"..string_format("%s", shortenValue(amount-overHeal))  
       local shortname = string.gsub(strsplit("-", destName), "%s+", "")
       local tooltip = self:ClassColorGuid(destGUID, shortname)..' |cFF00FF00+'..amnt..'|r' 
 
