@@ -1,13 +1,11 @@
 EavesDrop Fixes for personal use.
 
-Original author:
+Original author: http://grayhoof.wowinterface.com/
 
 
 ***********************************
 EavesDrop 2.1
 ***********************************
-
-Website - http://grayhoof.wowinterface.com/
 
 What is it? - A simple combat log that displays events similar to how SCT/D would in a log, using icons to display spells/skills. It seperates incoming events (left side) from out going events (right side) from misc. events (middle).
 
