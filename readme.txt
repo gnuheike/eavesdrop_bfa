@@ -1,4 +1,4 @@
-EavesDrop Fixes for personal use.
+EavesDrop Fixes.
 
 Original author: http://grayhoof.wowinterface.com/
 
